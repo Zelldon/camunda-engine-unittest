@@ -12,18 +12,19 @@
  */
 package org.camunda.bpm.unittest;
 
-import org.camunda.bpm.engine.runtime.ProcessInstance;
-import org.camunda.bpm.engine.test.Deployment;
+import de.mkammerer.argon2.Argon2;
+import de.mkammerer.argon2.Argon2Factory;
+import org.camunda.bpm.engine.IdentityService;
+import org.camunda.bpm.engine.identity.User;
+import org.camunda.bpm.engine.impl.digest._apacheCommonsCodec.Base64;
 import org.camunda.bpm.engine.test.ProcessEngineRule;
-
-import static org.camunda.bpm.engine.test.assertions.ProcessEngineTests.*;
-
 import org.junit.Rule;
 import org.junit.Test;
 
+import static org.junit.Assert.assertTrue;
+
 /**
- * @author Daniel Meyer
- * @author Martin Schimak
+ * @author Christopher Zell
  */
 public class SimpleTestCase {
 
@@ -31,21 +32,24 @@ public class SimpleTestCase {
   public ProcessEngineRule rule = new ProcessEngineRule();
 
   @Test
-  @Deployment(resources = {"testProcess.bpmn"})
   public void shouldExecuteProcess() {
-    // Given we create a new process instance
-    ProcessInstance processInstance = runtimeService().startProcessInstanceByKey("testProcess");
-    // Then it should be active
-    assertThat(processInstance).isActive();
-    // And it should be the only instance
-    assertThat(processInstanceQuery().count()).isEqualTo(1);
-    // And there should exist just a single task within that process instance
-    assertThat(task(processInstance)).isNotNull();
+    // set up
+    IdentityService identityService = rule.getIdentityService();
+    User user1 = identityService.newUser("user1");
+    user1.setFirstName("hans");
+    user1.setLastName("Klock");
+    user1.setPassword("pw");
 
-    // When we complete that task
-    complete(task(processInstance));
-    // Then the process instance should be ended
-    assertThat(processInstance).isEnded();
+    // when user is saved
+    identityService.saveUser(user1);
+    identityService.setAuthenticatedUserId("user1");
+
+    // then argon2 can verify password
+    User user = identityService.createUserQuery().singleResult();
+    Argon2 argon2 = Argon2Factory.create();
+    assertTrue(argon2.verify(new String(Base64.decodeBase64(user.getPassword())), "pw"+user.getSalt()));
+
+    // and identity service can check password as well
+    assertTrue(identityService.checkPassword("user1", "pw"));
   }
-
 }
