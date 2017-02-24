@@ -17,6 +17,7 @@ import de.mkammerer.argon2.Argon2Factory;
 import org.camunda.bpm.engine.IdentityService;
 import org.camunda.bpm.engine.identity.User;
 import org.camunda.bpm.engine.impl.digest._apacheCommonsCodec.Base64;
+import org.camunda.bpm.engine.impl.persistence.entity.UserEntity;
 import org.camunda.bpm.engine.test.ProcessEngineRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -45,9 +46,13 @@ public class SimpleTestCase {
     identityService.setAuthenticatedUserId("user1");
 
     // then argon2 can verify password
-    User user = identityService.createUserQuery().singleResult();
+    UserEntity user = (UserEntity) identityService.createUserQuery().singleResult();
     Argon2 argon2 = Argon2Factory.create();
-    assertTrue(argon2.verify(new String(Base64.decodeBase64(user.getPassword())), "pw"+user.getSalt()));
+    String pwWithoutPrefix = user.getPassword().substring(8);
+    assertTrue(argon2.verify(new String(Base64.decodeBase64(pwWithoutPrefix)), "pw"+user.getSalt()));
+
+    // password manager can check the pw
+    assertTrue(rule.getProcessEngineConfiguration().getPasswordManager().check("pw"+user.getSalt(), user.getPassword()));
 
     // and identity service can check password as well
     assertTrue(identityService.checkPassword("user1", "pw"));

@@ -10,8 +10,7 @@ import org.camunda.bpm.engine.impl.digest._apacheCommonsCodec.Base64;
  * @author Christopher Zell <christopher.zell@camunda.com>
  */
 public class Argon2HashAlgorithm extends Base64EncodedHashDigest implements PasswordEncryptor {
-
-  protected String getAlgorithmName() {
+  public String hashAlgorithmName() {
     return "argon2";
   }
 
